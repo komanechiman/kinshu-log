@@ -1,0 +1,18 @@
+{
+  "name": "おうち禁酒ログ",
+  "short_name": "禁酒ログ",
+  "description": "家での飲酒をやめる習慣づけのための1タップ記録",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F3F6F4",
+  "theme_color": "#F3F6F4",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

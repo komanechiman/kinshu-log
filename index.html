@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="おうち禁酒">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#F3F6F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121816" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>おうち禁酒ログ</title>
+<style>
+  :root{
+    --bg:#F3F6F4; --card:#FFFFFF; --text:#25332F; --soft:#617370; --line:#E3EAE7;
+    --shadow:#D9E3DF;
+    --sober:#2A9A73; --sober-dark:#1E7457; --sober-soft:#E4F4EE; --on-sober:#FFFFFF;
+    --drank:#8793AE; --drank-dark:#6A7592; --drank-soft:#ECEFF6; --on-drank:#FFFFFF;
+    --gold:#E6A21A; --gold-soft:#FFF4DC; --gold-bd:#EED9A6;
+    --empty:#F6F8F7;
+    --r-lg:22px; --r-md:16px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#121816; --card:#1E2926; --text:#E7F0EC; --soft:#A2B5AF; --line:#30403B;
+      --shadow:#0A0F0D;
+      --sober:#3DBE92; --sober-dark:#1F7358; --sober-soft:#1D3A30; --on-sober:#0B1A14;
+      --drank:#8E9BBB; --drank-dark:#4F5A76; --drank-soft:#262D3D; --on-drank:#11151F;
+      --gold:#E5A52F; --gold-soft:#2E2715; --gold-bd:#4E4020;
+      --empty:#18211E;
+    }
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif;
+    line-height:1.5;
+    padding:calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 32px);
+  }
+  main{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+  h1{font-size:1.05rem;margin:4px 4px 0;color:var(--soft);font-weight:700;letter-spacing:.04em}
+  h2{font-size:.95rem;margin:0 0 12px;color:var(--soft);font-weight:700}
+  .card{background:var(--card);border-radius:var(--r-lg);padding:18px;box-shadow:0 4px 0 var(--shadow)}
+  button{font:inherit;color:inherit;cursor:pointer}
+
+  /* 今日 */
+  .today-date{font-size:1.25rem;font-weight:800;margin:0 0 2px}
+  .today-sub{font-size:.85rem;color:var(--soft);margin:0 0 14px;min-height:1.3em}
+  .choice{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .choice button{
+    border:2px solid var(--line);background:var(--card);border-radius:var(--r-md);
+    padding:22px 8px 18px;font-size:1.1rem;font-weight:800;
+    box-shadow:0 4px 0 var(--shadow);transition:transform .08s, box-shadow .08s, background .15s;
+    display:flex;flex-direction:column;align-items:center;gap:6px;min-height:110px;justify-content:center;
+  }
+  .choice button .ico{font-size:1.9rem;line-height:1}
+  .choice button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--shadow)}
+  .choice .sober[aria-pressed="true"]{background:var(--sober);border-color:var(--sober);color:var(--on-sober);box-shadow:0 4px 0 var(--sober-dark)}
+  .choice .drank[aria-pressed="true"]{background:var(--drank);border-color:var(--drank);color:var(--on-drank);box-shadow:0 4px 0 var(--drank-dark)}
+  .memo{margin-top:12px;display:none}
+  .memo.show{display:block}
+  .memo input{
+    width:100%;font:inherit;font-size:1rem;padding:11px 14px;border-radius:12px;
+    border:2px solid var(--line);background:var(--empty);color:var(--text);
+  }
+  .memo input:focus{outline:none;border-color:var(--drank)}
+
+  /* ステータス */
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{background:var(--empty);border-radius:var(--r-md);padding:12px 14px}
+  .stat .lbl{font-size:.78rem;color:var(--soft);font-weight:700}
+  .stat .val{font-size:1.7rem;font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums}
+  .stat .val small{font-size:.85rem;font-weight:700;margin-left:2px;color:var(--soft)}
+  .stat.main{grid-column:1 / -1;background:var(--sober-soft);display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px}
+  .stat.main .val{font-size:2.4rem;color:var(--sober-dark)}
+  @media (prefers-color-scheme: dark){ .stat.main .val{color:var(--sober)} }
+
+  /* バッジ */
+  .badges{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+  .badge{
+    aspect-ratio:1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    border:2px dashed var(--line);color:var(--soft);font-weight:800;font-size:.95rem;line-height:1.05;
+  }
+  .badge span{font-size:.62rem;font-weight:700}
+  .badge.on{border:2px solid var(--gold-bd);background:var(--gold-soft);color:var(--gold);box-shadow:0 3px 0 var(--gold-bd)}
+  .badge-next{font-size:.82rem;color:var(--soft);margin:12px 0 0;text-align:center}
+
+  /* カレンダー */
+  .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .cal-head h2{margin:0;color:var(--text);font-size:1.05rem}
+  .navbtn{border:none;background:var(--empty);width:40px;height:40px;border-radius:12px;font-size:1.1rem;font-weight:800}
+  .navbtn:disabled{opacity:.3;cursor:default}
+  .cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+  .dow{font-size:.72rem;color:var(--soft);text-align:center;font-weight:700;padding-bottom:2px}
+  .day{
+    aspect-ratio:1;width:100%;min-width:0;border-radius:10px;border:none;background:var(--empty);
+    font-size:.88rem;font-weight:700;display:flex;align-items:center;justify-content:center;position:relative;padding:0;
+  }
+  .day.sober{background:var(--sober);color:var(--on-sober)}
+  .day.drank{background:var(--drank);color:var(--on-drank)}
+  .day.today{outline:2.5px solid var(--text);outline-offset:1px}
+  .day.future{opacity:.35;cursor:default}
+  .day.memo::after{content:"";position:absolute;top:4px;right:4px;width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.8}
+  .legend{display:flex;gap:14px;justify-content:center;margin-top:12px;font-size:.78rem;color:var(--soft);flex-wrap:wrap}
+  .legend i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px;margin-right:4px}
+  .cal-hint{font-size:.78rem;color:var(--soft);text-align:center;margin:6px 0 0}
+
+  /* 設定 */
+  details summary{list-style:none;cursor:pointer;font-weight:700;color:var(--soft);font-size:.95rem;display:flex;justify-content:space-between}
+  details summary::-webkit-details-marker{display:none}
+  details summary::after{content:"＋";font-weight:800}
+  details[open] summary::after{content:"－"}
+  .set-row{margin-top:16px}
+  .set-row label{display:block;font-size:.85rem;font-weight:700;margin-bottom:6px}
+  .price{display:flex;align-items:center;gap:8px}
+  .price input{width:130px;font:inherit;font-size:1.05rem;padding:9px 12px;border-radius:12px;border:2px solid var(--line);background:var(--empty);color:var(--text);text-align:right}
+  .btns{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{border:2px solid var(--line);background:var(--card);border-radius:12px;padding:10px 14px;font-weight:700;font-size:.9rem;box-shadow:0 3px 0 var(--shadow)}
+  .btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--shadow)}
+  .btn.quiet{color:var(--soft)}
+  .note{font-size:.78rem;color:var(--soft);margin:6px 0 0}
+
+  /* 過去日シート */
+  .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:flex-end;justify-content:center;z-index:20}
+  .sheet-bg.show{display:flex}
+  .sheet{
+    background:var(--card);width:100%;max-width:480px;border-radius:var(--r-lg) var(--r-lg) 0 0;
+    padding:20px 18px calc(env(safe-area-inset-bottom) + 20px);animation:up .2s ease-out;
+  }
+  @keyframes up{from{transform:translateY(40px);opacity:.5}to{transform:none;opacity:1}}
+  .sheet-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .sheet-top .today-date{margin:0}
+  .sheet-foot{display:flex;justify-content:space-between;margin-top:16px}
+  .link{border:none;background:none;color:var(--soft);font-size:.85rem;text-decoration:underline;padding:8px 0}
+
+  /* トースト */
+  .toast{
+    position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translate(-50%,20px);
+    background:var(--text);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:.9rem;font-weight:700;
+    opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;z-index:40;white-space:nowrap;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  /* お祝い */
+  .celebrate{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:30;background:rgba(0,0,0,.25);overflow:hidden}
+  .celebrate.show{display:flex}
+  .cele-card{
+    background:var(--card);border-radius:28px;padding:28px 26px 22px;text-align:center;width:min(86vw,340px);
+    box-shadow:0 6px 0 var(--gold-bd);animation:pop .5s cubic-bezier(.2,1.6,.4,1);position:relative;z-index:2;
+  }
+  .cele-medal{
+    width:110px;height:110px;margin:0 auto 12px;border-radius:50%;background:var(--gold-soft);border:4px solid var(--gold);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--gold);font-weight:900;font-size:2.4rem;line-height:1;
+    animation:spin 1s ease-out;
+  }
+  .cele-medal span{font-size:.9rem;margin-top:2px}
+  .cele-card h3{margin:0 0 4px;font-size:1.3rem}
+  .cele-card p{margin:0 0 16px;color:var(--soft);font-size:.9rem}
+  .cele-card .btn{width:100%;background:var(--gold);border-color:var(--gold);color:#fff;box-shadow:0 3px 0 var(--gold-bd)}
+  @keyframes pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+  @keyframes spin{from{transform:rotateY(0) scale(.6)}to{transform:rotateY(720deg) scale(1)}}
+  .confetti{position:absolute;top:-20px;width:9px;height:14px;border-radius:2px;animation:fall linear forwards;z-index:1}
+  @keyframes fall{to{transform:translate(var(--dx),110vh) rotate(var(--rot))}}
+  @media (prefers-reduced-motion: reduce){
+    .cele-card,.cele-medal,.sheet{animation:none}
+    .confetti{display:none}
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>おうち禁酒ログ</h1>
+
+  <!-- 1. 今日の記録 -->
+  <section class="card" aria-labelledby="todayTitle">
+    <p class="today-date" id="todayTitle"></p>
+    <p class="today-sub" id="todaySub"></p>
+    <div class="choice" id="todayChoice">
+      <button class="sober" data-s="sober" aria-pressed="false"><span class="ico">🍵</span>飲まなかった</button>
+      <button class="drank" data-s="drank" aria-pressed="false"><span class="ico">🍺</span>飲んだ</button>
+    </div>
+    <div class="memo" id="todayMemo">
+      <input type="text" maxlength="60" placeholder="メモ（任意）例：来客があった" aria-label="メモ（任意）">
+    </div>
+  </section>
+
+  <!-- 2. ステータス -->
+  <section class="card" aria-label="ステータス">
+    <div class="stats">
+      <div class="stat main"><div class="lbl">いまの連続記録</div><div class="val" id="stCur">0<small>日</small></div></div>
+      <div class="stat"><div class="lbl">最長連続</div><div class="val" id="stMax">0<small>日</small></div></div>
+      <div class="stat"><div class="lbl">飲まなかった日 累計</div><div class="val" id="stTotal">0<small>日</small></div></div>
+      <div class="stat" style="grid-column:1 / -1"><div class="lbl">浮いたお金（累計）</div><div class="val" id="stSaved">0<small>円</small></div></div>
+    </div>
+  </section>
+
+  <!-- 3. バッジ -->
+  <section class="card" aria-labelledby="badgeTitle">
+    <h2 id="badgeTitle">バッジ</h2>
+    <div class="badges" id="badges"></div>
+    <p class="badge-next" id="badgeNext"></p>
+  </section>
+
+  <!-- 4. カレンダー -->
+  <section class="card" aria-label="カレンダー">
+    <div class="cal-head">
+      <button class="navbtn" id="prevM" aria-label="前の月">‹</button>
+      <h2 id="calTitle"></h2>
+      <button class="navbtn" id="nextM" aria-label="次の月">›</button>
+    </div>
+    <div class="cal" id="cal"></div>
+    <div class="legend">
+      <span><i style="background:var(--sober)"></i>飲まなかった</span>
+      <span><i style="background:var(--drank)"></i>飲んだ</span>
+      <span><i style="background:var(--empty);border:1px solid var(--line)"></i>未記録</span>
+    </div>
+    <p class="cal-hint">日付をタップすると、その日の記録をつけたり直したりできます</p>
+  </section>
+
+  <!-- 5. 設定 -->
+  <section class="card">
+    <details>
+      <summary>設定</summary>
+      <div class="set-row">
+        <label for="price">1日あたりの金額</label>
+        <div class="price"><input id="price" type="number" inputmode="numeric" min="0" step="10"><span>円</span></div>
+        <p class="note">家で飲むときに1日で使っていたおおよその金額</p>
+      </div>
+      <div class="set-row">
+        <label>データのバックアップ</label>
+        <div class="btns">
+          <button class="btn" id="exportBtn">書き出す（JSON）</button>
+          <button class="btn" id="importBtn">読み込む</button>
+          <input type="file" id="importFile" accept="application/json,.json" hidden>
+        </div>
+        <p class="note">読み込むと、ファイル内の記録で同じ日付の記録を上書きします</p>
+      </div>
+      <div class="set-row">
+        <label>データの削除</label>
+        <button class="btn quiet" id="resetBtn">すべてのデータを削除</button>
+      </div>
+    </details>
+  </section>
+</main>
+
+<!-- 過去日の記録シート -->
+<div class="sheet-bg" id="sheetBg">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-top">
+      <p class="today-date" id="sheetTitle"></p>
+      <button class="navbtn" id="sheetClose" aria-label="閉じる">✕</button>
+    </div>
+    <div class="choice" id="sheetChoice">
+      <button class="sober" data-s="sober" aria-pressed="false"><span class="ico">🍵</span>飲まなかった</button>
+      <button class="drank" data-s="drank" aria-pressed="false"><span class="ico">🍺</span>飲んだ</button>
+    </div>
+    <div class="memo" id="sheetMemo">
+      <input type="text" maxlength="60" placeholder="メモ（任意）" aria-label="メモ（任意）">
+    </div>
+    <div class="sheet-foot">
+      <button class="link" id="sheetClear">未記録に戻す</button>
+      <button class="btn" id="sheetDone">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div class="celebrate" id="celebrate" role="alertdialog" aria-labelledby="celeTitle">
+  <div class="cele-card">
+    <div class="cele-medal" id="celeMedal"></div>
+    <h3 id="celeTitle"></h3>
+    <p id="celeText"></p>
+    <button class="btn" id="celeClose">OK</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const KEY = 'kinshu-log-v1';
+  const DAY_START_HOUR = 4;               // 午前4時で日付が切り替わる
+  const BADGES = [3, 7, 14, 30, 60, 100];
+  const DOW = ['日', '月', '火', '水', '木', '金', '土'];
+
+  // ---------- 日付ユーティリティ（すべて端末ローカル時刻） ----------
+  const pad = n => String(n).padStart(2, '0');
+  const keyOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parse = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+  const addDays = (k, n) => { const d = parse(k); d.setDate(d.getDate() + n); return keyOf(d); };
+  const todayKey = () => {
+    const d = new Date();
+    if (d.getHours() < DAY_START_HOUR) d.setDate(d.getDate() - 1);
+    return keyOf(d);
+  };
+  const labelOf = k => { const d = parse(k); return `${d.getMonth() + 1}月${d.getDate()}日（${DOW[d.getDay()]}）`; };
+  const isDateKey = k => /^\d{4}-\d{2}-\d{2}$/.test(k);
+
+  // ---------- 保存 ----------
+  // data = { price: number, records: { 'YYYY-MM-DD': { s: 'sober'|'drank', m?: string } } }
+  const fresh = () => ({ price: 800, records: {} });
+  function load() {
+    try {
+      const d = JSON.parse(localStorage.getItem(KEY));
+      if (d && typeof d === 'object' && d.records) return { ...fresh(), ...d };
+    } catch (e) {}
+    return fresh();
+  }
+  let data = load();
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(data)); }
+    catch (e) { toast('保存できませんでした'); }
+  }
+
+  // ---------- 集計 ----------
+  function stats() {
+    const today = todayKey();
+    const rec = data.records;
+    const soberKeys = Object.keys(rec).filter(k => rec[k].s === 'sober').sort();
+
+    // 最長連続：飲まなかった日が暦日で連続している区間の最大
+    let longest = 0, run = 0, prev = null;
+    for (const k of soberKeys) {
+      run = (prev && addDays(prev, 1) === k) ? run + 1 : 1;
+      if (run > longest) longest = run;
+      prev = k;
+    }
+
+    // いまの連続：今日が未記録なら昨日から数える（まだ記録していないだけで途切れさせない）
+    let cur = 0;
+    let k = rec[today] ? today : addDays(today, -1);
+    while (rec[k] && rec[k].s === 'sober') { cur++; k = addDays(k, -1); }
+
+    return { cur, longest, total: soberKeys.length };
+  }
+
+  // ---------- 記録の変更（バッジ達成の検出込み） ----------
+  function setRecord(k, s) {
+    const before = stats().longest;
+    const old = data.records[k];
+    if (s === null) delete data.records[k];
+    else data.records[k] = { s, ...(s === 'drank' && old && old.m ? { m: old.m } : {}) };
+    save();
+    const after = stats().longest;
+    render();
+    const reached = BADGES.filter(b => b > before && b <= after);
+    if (reached.length) celebrate(reached[reached.length - 1]);
+  }
+  function setMemo(k, text) {
+    const r = data.records[k];
+    if (!r || r.s !== 'drank') return;
+    const m = text.trim();
+    if (m) r.m = m; else delete r.m;
+    save();
+    renderCalendar();
+  }
+
+  // ---------- 描画 ----------
+  const $ = id => document.getElementById(id);
+  const yen = n => n.toLocaleString('ja-JP');
+  let viewYM = null; // カレンダー表示中の月 {y, m}(m: 0-11)
+
+  function paintChoice(box, memoBox, r) {
+    box.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(!!r && r.s === b.dataset.s)));
+    const show = !!r && r.s === 'drank';
+    memoBox.classList.toggle('show', show);
+    const input = memoBox.querySelector('input');
+    if (document.activeElement !== input) input.value = show ? (r.m || '') : '';
+  }
+
+  function renderToday() {
+    const k = todayKey();
+    const r = data.records[k];
+    $('todayTitle').textContent = `今日 ${labelOf(k)}`;
+    $('todaySub').textContent = !r ? '今日はどうでしたか？'
+      : r.s === 'sober' ? '記録済み：飲まなかった（タップで変更できます）'
+      : '記録済み：飲んだ（タップで変更できます）';
+    paintChoice($('todayChoice'), $('todayMemo'), r);
+  }
+
+  function renderStats() {
+    const s = stats();
+    $('stCur').innerHTML = `${s.cur}<small>日</small>`;
+    $('stMax').innerHTML = `${s.longest}<small>日</small>`;
+    $('stTotal').innerHTML = `${s.total}<small>日</small>`;
+    $('stSaved').innerHTML = `${yen(s.total * (Number(data.price) || 0))}<small>円</small>`;
+
+    $('badges').innerHTML = BADGES.map(b =>
+      `<div class="badge${s.longest >= b ? ' on' : ''}" aria-label="${b}日バッジ${s.longest >= b ? ' 達成' : ''}">${b}<span>日</span></div>`
+    ).join('');
+    const next = BADGES.find(b => b > s.longest);
+    $('badgeNext').textContent = next
+      ? `次のバッジ（${next}日）まで あと${next - s.cur}日`
+      : 'すべてのバッジを達成しました';
+  }
+
+  function renderCalendar() {
+    const today = todayKey();
+    if (!viewYM) { const t = parse(today); viewYM = { y: t.getFullYear(), m: t.getMonth() }; }
+    const { y, m } = viewYM;
+    $('calTitle').textContent = `${y}年${m + 1}月`;
+    const t = parse(today);
+    $('nextM').disabled = (y > t.getFullYear()) || (y === t.getFullYear() && m >= t.getMonth());
+
+    const first = new Date(y, m, 1).getDay();
+    const days = new Date(y, m + 1, 0).getDate();
+    let html = DOW.map(d => `<div class="dow">${d}</div>`).join('');
+    for (let i = 0; i < first; i++) html += '<div></div>';
+    for (let d = 1; d <= days; d++) {
+      const k = `${y}-${pad(m + 1)}-${pad(d)}`;
+      const r = data.records[k];
+      const cls = ['day'];
+      if (r) cls.push(r.s);
+      if (r && r.m) cls.push('memo');
+      if (k === today) cls.push('today');
+      const future = k > today;
+      if (future) cls.push('future');
+      const state = r ? (r.s === 'sober' ? '飲まなかった' : '飲んだ') : '未記録';
+      html += `<button class="${cls.join(' ')}" data-k="${k}" ${future ? 'disabled' : ''} aria-label="${m + 1}月${d}日 ${state}">${d}</button>`;
+    }
+    $('cal').innerHTML = html;
+  }
+
+  function render() {
+    renderToday();
+    renderStats();
+    renderCalendar();
+    if (sheetKey) paintChoice($('sheetChoice'), $('sheetMemo'), data.records[sheetKey]);
+  }
+
+  // ---------- トースト ----------
+  let toastTimer;
+  function toast(msg) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+  }
+
+  // ---------- お祝い ----------
+  function celebrate(n) {
+    $('celeMedal').innerHTML = `${n}<span>日</span>`;
+    $('celeTitle').textContent = `${n}日連続 達成！`;
+    $('celeText').textContent = `${n}日バッジを手に入れました`;
+    const box = $('celebrate');
+    box.querySelectorAll('.confetti').forEach(c => c.remove());
+    const colors = ['var(--gold)', 'var(--sober)', '#F28DB2', '#6CB6F0', '#B69CF2'];
+    for (let i = 0; i < 70; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = Math.random() * 100 + 'vw';
+      c.style.background = colors[i % colors.length];
+      c.style.setProperty('--dx', (Math.random() * 120 - 60) + 'px');
+      c.style.setProperty('--rot', (Math.random() * 720 - 360) + 'deg');
+      c.style.animationDuration = (2.2 + Math.random() * 1.8) + 's';
+      c.style.animationDelay = (Math.random() * .6) + 's';
+      box.appendChild(c);
+    }
+    box.classList.add('show');
+    if (navigator.vibrate) try { navigator.vibrate(60); } catch (e) {}
+  }
+  $('celeClose').addEventListener('click', () => $('celebrate').classList.remove('show'));
+
+  // ---------- 今日の操作 ----------
+  $('todayChoice').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const k = todayKey();
+    if (data.records[k] && data.records[k].s === b.dataset.s) return;
+    setRecord(k, b.dataset.s);
+    toast('記録しました');
+  });
+  $('todayMemo').querySelector('input').addEventListener('input', e => setMemo(todayKey(), e.target.value));
+
+  // ---------- カレンダーの操作 ----------
+  $('prevM').addEventListener('click', () => { viewYM.m--; if (viewYM.m < 0) { viewYM.m = 11; viewYM.y--; } renderCalendar(); });
+  $('nextM').addEventListener('click', () => { viewYM.m++; if (viewYM.m > 11) { viewYM.m = 0; viewYM.y++; } renderCalendar(); });
+  $('cal').addEventListener('click', e => {
+    const b = e.target.closest('button.day');
+    if (b && !b.disabled) openSheet(b.dataset.k);
+  });
+
+  // ---------- 過去日シート ----------
+  let sheetKey = null;
+  function openSheet(k) {
+    sheetKey = k;
+    $('sheetTitle').textContent = k === todayKey() ? `今日 ${labelOf(k)}` : labelOf(k);
+    paintChoice($('sheetChoice'), $('sheetMemo'), data.records[k]);
+    $('sheetBg').classList.add('show');
+  }
+  function closeSheet() { sheetKey = null; $('sheetBg').classList.remove('show'); }
+  $('sheetChoice').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b || !sheetKey) return;
+    if (data.records[sheetKey] && data.records[sheetKey].s === b.dataset.s) return;
+    setRecord(sheetKey, b.dataset.s);
+    toast('記録しました');
+  });
+  $('sheetMemo').querySelector('input').addEventListener('input', e => { if (sheetKey) setMemo(sheetKey, e.target.value); });
+  $('sheetClear').addEventListener('click', () => { if (sheetKey) { setRecord(sheetKey, null); toast('未記録に戻しました'); } });
+  $('sheetClose').addEventListener('click', closeSheet);
+  $('sheetDone').addEventListener('click', closeSheet);
+  $('sheetBg').addEventListener('click', e => { if (e.target === e.currentTarget) closeSheet(); });
+
+  // ---------- 設定 ----------
+  $('price').value = data.price;
+  $('price').addEventListener('input', e => {
+    const v = Math.max(0, Math.floor(Number(e.target.value) || 0));
+    data.price = v;
+    save();
+    renderStats();
+  });
+
+  $('exportBtn').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify({ app: 'kinshu-log', version: 1, exportedAt: new Date().toISOString(), ...data }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `kinshu-log-${todayKey()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+
+  $('importBtn').addEventListener('click', () => $('importFile').click());
+  $('importFile').addEventListener('change', async e => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    try {
+      const obj = JSON.parse(await f.text());
+      if (!obj || typeof obj.records !== 'object') throw new Error('bad');
+      let n = 0;
+      for (const [k, r] of Object.entries(obj.records)) {
+        if (!isDateKey(k) || !r || (r.s !== 'sober' && r.s !== 'drank')) continue;
+        data.records[k] = r.s === 'drank' && typeof r.m === 'string' && r.m.trim() ? { s: 'drank', m: r.m.trim().slice(0, 60) } : { s: r.s };
+        n++;
+      }
+      if (Number.isFinite(Number(obj.price)) && Number(obj.price) >= 0) data.price = Math.floor(Number(obj.price));
+      save();
+      $('price').value = data.price;
+      render();
+      toast(`${n}日分を読み込みました`);
+    } catch (err) {
+      toast('読み込めないファイルでした');
+    }
+  });
+
+  $('resetBtn').addEventListener('click', () => {
+    if (!confirm('すべての記録と設定を削除します。元に戻せません。よろしいですか？')) return;
+    data = fresh();
+    save();
+    $('price').value = data.price;
+    viewYM = null;
+    render();
+    toast('削除しました');
+  });
+
+  // ---------- 日付の切り替わり（午前4時）に追従 ----------
+  let lastToday = todayKey();
+  function checkDayChange() {
+    const k = todayKey();
+    if (k !== lastToday) { lastToday = k; viewYM = null; render(); }
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDayChange(); });
+  setInterval(checkDayChange, 60 * 1000);
+
+  render();
+
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
