@@ -288,6 +288,7 @@
   const DAY_START_HOUR = 4;               // 午前4時で日付が切り替わる
   const BADGES = [3, 7, 14, 30, 60, 100];
   const DOW = ['日', '月', '火', '水', '木', '金', '土'];
+  const FUTURE_MONTHS = 24;               // カレンダーで先に進める月数
 
   // ---------- 日付ユーティリティ（すべて端末ローカル時刻） ----------
   const pad = n => String(n).padStart(2, '0');
@@ -406,7 +407,8 @@
     const { y, m } = viewYM;
     $('calTitle').textContent = `${y}年${m + 1}月`;
     const t = parse(today);
-    $('nextM').disabled = (y > t.getFullYear()) || (y === t.getFullYear() && m >= t.getMonth());
+    // 先の月は2年後まで見られる（未来の日は記録できない）
+    $('nextM').disabled = (y * 12 + m) >= (t.getFullYear() * 12 + t.getMonth() + FUTURE_MONTHS);
 
     const first = new Date(y, m, 1).getDay();
     const days = new Date(y, m + 1, 0).getDate();
