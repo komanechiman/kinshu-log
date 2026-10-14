@@ -80,6 +80,28 @@
   .stat.main .val{font-size:2.4rem;color:var(--sober-dark)}
   @media (prefers-color-scheme: dark){ .stat.main .val{color:var(--sober)} }
 
+  /* からだの回復 */
+  .body-list{display:flex;flex-direction:column;gap:14px}
+  .body-item .row{display:flex;justify-content:space-between;align-items:baseline;font-weight:700;font-size:.95rem}
+  .body-item .pct{font-size:1.35rem;font-weight:800;color:var(--sober-dark);font-variant-numeric:tabular-nums}
+  .body-item .pct small{font-size:.8rem;margin-left:1px}
+  .bar{height:12px;background:var(--empty);border-radius:999px;overflow:hidden;margin:6px 0 4px}
+  .bar i{display:block;height:100%;background:var(--sober);border-radius:999px;transition:width .6s ease-out}
+  .body-item .sub{font-size:.76rem;color:var(--soft)}
+  .body-note{font-size:.72rem;color:var(--soft);margin:12px 0 0}
+  @media (prefers-color-scheme: dark){ .body-item .pct{color:var(--sober)} }
+  .labs{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+  .lab-form{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  .lab-form label{font-size:.78rem;font-weight:700;color:var(--soft);display:flex;flex-direction:column;gap:4px}
+  .lab-form input{width:100%;min-width:0;font:inherit;font-size:1rem;padding:9px 10px;border-radius:12px;border:2px solid var(--line);background:var(--empty);color:var(--text)}
+  .lab-form .wide{grid-column:1 / -1}
+  .lab-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:10px 0;border-bottom:1px solid var(--line);font-size:.86rem}
+  .lab-row:last-child{border-bottom:none}
+  .lab-row b{display:block;font-size:.9rem}
+  .lab-row .down{color:var(--sober-dark);font-weight:700}
+  @media (prefers-color-scheme: dark){ .lab-row .down{color:var(--sober)} }
+  .lab-del{border:none;background:none;color:var(--soft);font-size:1rem;padding:2px 6px}
+
   /* バッジ */
   .badges{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
   .badge{
@@ -199,6 +221,26 @@
     </div>
   </section>
 
+  <!-- からだの回復 -->
+  <section class="card" aria-labelledby="bodyTitle">
+    <h2 id="bodyTitle">からだの回復</h2>
+    <div class="body-list" id="bodyList"></div>
+    <p class="body-note">直近の「飲まなかった日」の数から出した一般的な目安です。診断ではありません。実際の数値は検査で確かめてください。</p>
+    <details class="labs">
+      <summary>検査の数値</summary>
+      <div class="lab-form">
+        <label class="wide">検査日<input type="date" id="labDate"></label>
+        <label>γ-GTP（U/L）<input type="number" inputmode="decimal" step="any" id="labGgt"></label>
+        <label>MCV（fL）<input type="number" inputmode="decimal" step="any" id="labMcv"></label>
+        <label>AST（U/L）<input type="number" inputmode="decimal" step="any" id="labAst"></label>
+        <label>ALT（U/L）<input type="number" inputmode="decimal" step="any" id="labAlt"></label>
+        <button class="btn wide" id="labSave">記録する</button>
+      </div>
+      <p class="note">空欄の項目は記録しません。数値はこのスマホの中にだけ保存されます。</p>
+      <div id="labList"></div>
+    </details>
+  </section>
+
   <!-- 3. バッジ -->
   <section class="card" aria-labelledby="badgeTitle">
     <h2 id="badgeTitle">バッジ</h2>
@@ -289,6 +331,14 @@
   const BADGES = [3, 7, 14, 30, 60, 100];
   const DOW = ['日', '月', '火', '水', '木', '金', '土'];
   const FUTURE_MONTHS = 24;               // カレンダーで先に進める月数
+  // からだの回復の目安：直近 days 日のうち飲まなかった日の割合
+  const RECOVERY = [
+    { key: 'sleep', name: '睡眠', days: 14, desc: '寝る前のお酒がない夜が続くと、眠りが深くなりやすい（目安 約2週間）' },
+    { key: 'liver', name: '肝臓（γ-GTP）', days: 42, desc: 'γ-GTPはお酒を控えると下がりやすい（目安 4〜6週間）' },
+    { key: 'blood', name: '赤血球（MCV）', days: 120, desc: '赤血球がひととおり入れ替わるのに約4か月' },
+  ];
+  const LAB_ITEMS = [['ggt', 'γ-GTP'], ['mcv', 'MCV'], ['ast', 'AST'], ['alt', 'ALT']];
+  const labInput = k => document.getElementById('lab' + k[0].toUpperCase() + k.slice(1));
 
   // ---------- 日付ユーティリティ（すべて端末ローカル時刻） ----------
   const pad = n => String(n).padStart(2, '0');
@@ -304,12 +354,13 @@
   const isDateKey = k => /^\d{4}-\d{2}-\d{2}$/.test(k);
 
   // ---------- 保存 ----------
-  // data = { price: number, records: { 'YYYY-MM-DD': { s: 'sober'|'drank', m?: string } } }
-  const fresh = () => ({ price: 800, records: {} });
+  // data = { price: number, records: { 'YYYY-MM-DD': { s: 'sober'|'drank', m?: string } },
+  //         labs: [{ d: 'YYYY-MM-DD', ggt?, mcv?, ast?, alt? }] }
+  const fresh = () => ({ price: 800, records: {}, labs: [] });
   function load() {
     try {
       const d = JSON.parse(localStorage.getItem(KEY));
-      if (d && typeof d === 'object' && d.records) return { ...fresh(), ...d };
+      if (d && typeof d === 'object' && d.records) return { ...fresh(), ...d, labs: Array.isArray(d.labs) ? d.labs : [] };
     } catch (e) {}
     return fresh();
   }
@@ -429,9 +480,46 @@
     $('cal').innerHTML = html;
   }
 
+  // ---------- からだの回復 ----------
+  function recovery() {
+    const rec = data.records;
+    let end = todayKey();
+    if (!rec[end]) end = addDays(end, -1);   // 今日が未記録なら昨日まで
+    const cur = stats().cur;
+    return RECOVERY.map(it => {
+      let n = 0;
+      for (let i = 0; i < it.days; i++) { const r = rec[addDays(end, -i)]; if (r && r.s === 'sober') n++; }
+      return { ...it, n, pct: Math.round(n / it.days * 100), left: it.days - Math.min(cur, it.days) };
+    });
+  }
+
+  function renderBody() {
+    $('bodyList').innerHTML = recovery().map(r => `
+      <div class="body-item">
+        <div class="row"><span>${r.name}</span><span class="pct">${r.pct}<small>%</small></span></div>
+        <div class="bar"><i style="width:${r.pct}%"></i></div>
+        <div class="sub">${r.pct >= 100 ? '目安に届いています。' : `このまま続けると あと${r.left}日で100%。`}${r.desc}</div>
+      </div>`).join('');
+
+    const labs = [...data.labs].sort((a, b) => b.d.localeCompare(a.d));
+    $('labList').innerHTML = labs.map((l, i) => {
+      const prev = labs[i + 1];
+      const parts = LAB_ITEMS.filter(([k]) => l[k] != null).map(([k, name]) => {
+        let diff = '';
+        if (prev && prev[k] != null) {
+          const d = Math.round((l[k] - prev[k]) * 10) / 10;
+          diff = d < 0 ? ` <span class="down">（${d}）</span>` : d > 0 ? `（+${d}）` : '';
+        }
+        return `${name} ${l[k]}${diff}`;
+      });
+      return `<div class="lab-row"><div><b>${labelOf(l.d)}</b>${parts.join('　')}</div><button class="lab-del" data-d="${l.d}" aria-label="${labelOf(l.d)}の検査を消す">✕</button></div>`;
+    }).join('');
+  }
+
   function render() {
     renderToday();
     renderStats();
+    renderBody();
     renderCalendar();
     if (sheetKey) paintChoice($('sheetChoice'), $('sheetMemo'), data.records[sheetKey]);
   }
@@ -470,14 +558,22 @@
   }
   $('celeClose').addEventListener('click', () => $('celebrate').classList.remove('show'));
 
+  // 記録して、肝臓の回復の伸びをトーストで伝える
+  function recordWithToast(k, s) {
+    const liver = () => recovery().find(r => r.key === 'liver').pct;
+    const before = liver();
+    setRecord(k, s);
+    const up = liver() - before;
+    toast(up > 0 ? `記録しました　肝臓の回復 +${up}%` : '記録しました');
+  }
+
   // ---------- 今日の操作 ----------
   $('todayChoice').addEventListener('click', e => {
     const b = e.target.closest('button');
     if (!b) return;
     const k = todayKey();
     if (data.records[k] && data.records[k].s === b.dataset.s) return;
-    setRecord(k, b.dataset.s);
-    toast('記録しました');
+    recordWithToast(k, b.dataset.s);
   });
   $('todayMemo').querySelector('input').addEventListener('input', e => setMemo(todayKey(), e.target.value));
 
@@ -502,14 +598,38 @@
     const b = e.target.closest('button');
     if (!b || !sheetKey) return;
     if (data.records[sheetKey] && data.records[sheetKey].s === b.dataset.s) return;
-    setRecord(sheetKey, b.dataset.s);
-    toast('記録しました');
+    recordWithToast(sheetKey, b.dataset.s);
   });
   $('sheetMemo').querySelector('input').addEventListener('input', e => { if (sheetKey) setMemo(sheetKey, e.target.value); });
   $('sheetClear').addEventListener('click', () => { if (sheetKey) { setRecord(sheetKey, null); toast('未記録に戻しました'); } });
   $('sheetClose').addEventListener('click', closeSheet);
   $('sheetDone').addEventListener('click', closeSheet);
   $('sheetBg').addEventListener('click', e => { if (e.target === e.currentTarget) closeSheet(); });
+
+  // ---------- 検査の数値 ----------
+  $('labDate').value = $('labDate').max = todayKey();
+  $('labSave').addEventListener('click', () => {
+    const d = $('labDate').value;
+    if (!isDateKey(d)) { toast('検査日を入れてください'); return; }
+    const entry = { d };
+    for (const [k] of LAB_ITEMS) {
+      const v = parseFloat(labInput(k).value);
+      if (Number.isFinite(v) && v >= 0) entry[k] = v;
+    }
+    if (Object.keys(entry).length === 1) { toast('数値を1つ以上入れてください'); return; }
+    data.labs = data.labs.filter(l => l.d !== d).concat(entry);
+    save();
+    LAB_ITEMS.forEach(([k]) => { labInput(k).value = ''; });
+    renderBody();
+    toast('検査の数値を記録しました');
+  });
+  $('labList').addEventListener('click', e => {
+    const b = e.target.closest('.lab-del');
+    if (!b) return;
+    data.labs = data.labs.filter(l => l.d !== b.dataset.d);
+    save();
+    renderBody();
+  });
 
   // ---------- 設定 ----------
   $('price').value = data.price;
@@ -544,6 +664,14 @@
         if (!isDateKey(k) || !r || (r.s !== 'sober' && r.s !== 'drank')) continue;
         data.records[k] = r.s === 'drank' && typeof r.m === 'string' && r.m.trim() ? { s: 'drank', m: r.m.trim().slice(0, 60) } : { s: r.s };
         n++;
+      }
+      if (Array.isArray(obj.labs)) {
+        for (const l of obj.labs) {
+          if (!l || !isDateKey(l.d)) continue;
+          const entry = { d: l.d };
+          for (const [k] of LAB_ITEMS) if (Number.isFinite(l[k]) && l[k] >= 0) entry[k] = l[k];
+          if (Object.keys(entry).length > 1) data.labs = data.labs.filter(x => x.d !== l.d).concat(entry);
+        }
       }
       if (Number.isFinite(Number(obj.price)) && Number(obj.price) >= 0) data.price = Math.floor(Number(obj.price));
       save();
