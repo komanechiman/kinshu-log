@@ -70,6 +70,21 @@
   }
   .memo input:focus{outline:none;border-color:var(--drank)}
 
+  /* 運動 */
+  .ex-wrap{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+  .ex-lbl{font-size:.8rem;font-weight:700;color:var(--soft);margin:0 0 8px}
+  .ex{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .ex button{
+    border:2px solid var(--line);background:var(--card);border-radius:14px;padding:9px 2px 7px;
+    font-size:.78rem;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px;
+    box-shadow:0 3px 0 var(--shadow);
+  }
+  .ex button .ico{font-size:1.35rem;line-height:1.1}
+  .ex button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--shadow)}
+  .ex button[aria-pressed="true"]{background:var(--gold-soft);border-color:var(--gold);box-shadow:0 3px 0 var(--gold-bd)}
+  .ex button.rest[aria-pressed="true"]{background:var(--empty);border-color:var(--soft);box-shadow:0 3px 0 var(--line)}
+  .ex-sum{font-size:.78rem;color:var(--soft);margin:10px 0 0;text-align:center}
+
   /* ステータス */
   .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .stat{background:var(--empty);border-radius:var(--r-md);padding:12px 14px}
@@ -127,6 +142,7 @@
   .day.drank{background:var(--drank);color:var(--on-drank)}
   .day.today{outline:2.5px solid var(--text);outline-offset:1px}
   .day.future{opacity:.35;cursor:default}
+  .day.ex::before{content:"";position:absolute;bottom:4px;left:50%;margin-left:-3px;width:6px;height:6px;border-radius:50%;background:var(--gold)}
   .day.memo::after{content:"";position:absolute;top:4px;right:4px;width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.8}
   .legend{display:flex;gap:14px;justify-content:center;margin-top:12px;font-size:.78rem;color:var(--soft);flex-wrap:wrap}
   .legend i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px;margin-right:4px}
@@ -209,6 +225,16 @@
     <div class="memo" id="todayMemo">
       <input type="text" maxlength="60" placeholder="メモ（任意）例：来客があった" aria-label="メモ（任意）">
     </div>
+    <div class="ex-wrap">
+      <p class="ex-lbl">運動（いくつでも）</p>
+      <div class="ex" id="todayEx">
+        <button data-e="walk" aria-pressed="false"><span class="ico">🏃</span>走る・歩く</button>
+        <button data-e="swim" aria-pressed="false"><span class="ico">🏊</span>水泳</button>
+        <button data-e="gym" aria-pressed="false"><span class="ico">💪</span>筋トレ</button>
+        <button class="rest" data-e="rest" aria-pressed="false"><span class="ico">🛋️</span>休み</button>
+      </div>
+      <p class="ex-sum" id="exSum"></p>
+    </div>
   </section>
 
   <!-- 2. ステータス -->
@@ -260,6 +286,7 @@
       <span><i style="background:var(--sober)"></i>飲まなかった</span>
       <span><i style="background:var(--drank)"></i>飲んだ</span>
       <span><i style="background:var(--empty);border:1px solid var(--line)"></i>未記録</span>
+      <span><i style="background:var(--gold);border-radius:50%;width:8px;height:8px"></i>運動した</span>
     </div>
     <p class="cal-hint">日付をタップすると、その日の記録をつけたり直したりできます</p>
   </section>
@@ -304,6 +331,15 @@
     <div class="memo" id="sheetMemo">
       <input type="text" maxlength="60" placeholder="メモ（任意）" aria-label="メモ（任意）">
     </div>
+    <div class="ex-wrap">
+      <p class="ex-lbl">運動（いくつでも）</p>
+      <div class="ex" id="sheetEx">
+        <button data-e="walk" aria-pressed="false"><span class="ico">🏃</span>走る・歩く</button>
+        <button data-e="swim" aria-pressed="false"><span class="ico">🏊</span>水泳</button>
+        <button data-e="gym" aria-pressed="false"><span class="ico">💪</span>筋トレ</button>
+        <button class="rest" data-e="rest" aria-pressed="false"><span class="ico">🛋️</span>休み</button>
+      </div>
+    </div>
     <div class="sheet-foot">
       <button class="link" id="sheetClear">未記録に戻す</button>
       <button class="btn" id="sheetDone">閉じる</button>
@@ -337,6 +373,7 @@
     { key: 'liver', name: '肝臓（γ-GTP）', days: 42, desc: 'γ-GTPはお酒を控えると下がりやすい（目安 4〜6週間）' },
     { key: 'blood', name: '赤血球（MCV）', days: 120, desc: '赤血球がひととおり入れ替わるのに約4か月' },
   ];
+  const EX_KINDS = { walk: '走る・歩く', swim: '水泳', gym: '筋トレ' };
   const LAB_ITEMS = [['ggt', 'γ-GTP'], ['mcv', 'MCV'], ['ast', 'AST'], ['alt', 'ALT']];
   const labInput = k => document.getElementById('lab' + k[0].toUpperCase() + k.slice(1));
 
@@ -355,12 +392,13 @@
 
   // ---------- 保存 ----------
   // data = { price: number, records: { 'YYYY-MM-DD': { s: 'sober'|'drank', m?: string } },
-  //         labs: [{ d: 'YYYY-MM-DD', ggt?, mcv?, ast?, alt? }] }
-  const fresh = () => ({ price: 800, records: {}, labs: [] });
+  //         labs: [{ d: 'YYYY-MM-DD', ggt?, mcv?, ast?, alt? }],
+  //         ex: { 'YYYY-MM-DD': ['walk'|'swim'|'gym', ...] }  ※空配列 = 休み、キーなし = 未記録 }
+  const fresh = () => ({ price: 800, records: {}, labs: [], ex: {} });
   function load() {
     try {
       const d = JSON.parse(localStorage.getItem(KEY));
-      if (d && typeof d === 'object' && d.records) return { ...fresh(), ...d, labs: Array.isArray(d.labs) ? d.labs : [] };
+      if (d && typeof d === 'object' && d.records) return { ...fresh(), ...d, labs: Array.isArray(d.labs) ? d.labs : [], ex: d.ex && typeof d.ex === 'object' ? d.ex : {} };
     } catch (e) {}
     return fresh();
   }
@@ -426,6 +464,14 @@
     if (document.activeElement !== input) input.value = show ? (r.m || '') : '';
   }
 
+  function paintEx(box, k) {
+    const list = data.ex[k];
+    box.querySelectorAll('button').forEach(b => {
+      const on = !!list && (b.dataset.e === 'rest' ? list.length === 0 : list.includes(b.dataset.e));
+      b.setAttribute('aria-pressed', String(on));
+    });
+  }
+
   function renderToday() {
     const k = todayKey();
     const r = data.records[k];
@@ -434,6 +480,15 @@
       : r.s === 'sober' ? '記録済み：飲まなかった（タップで変更できます）'
       : '記録済み：飲んだ（タップで変更できます）';
     paintChoice($('todayChoice'), $('todayMemo'), r);
+    paintEx($('todayEx'), k);
+
+    // 今月の運動
+    const ym = k.slice(0, 7);
+    const days = Object.entries(data.ex).filter(([d, list]) => d.startsWith(ym) && list.length);
+    const cnt = Object.keys(EX_KINDS).map(e => [EX_KINDS[e], days.filter(([, l]) => l.includes(e)).length]).filter(([, n]) => n);
+    $('exSum').textContent = days.length
+      ? `今月の運動 ${days.length}日（${cnt.map(([n, c]) => `${n}${c}`).join(' / ')}）`
+      : '';
   }
 
   function renderStats() {
@@ -471,10 +526,13 @@
       const cls = ['day'];
       if (r) cls.push(r.s);
       if (r && r.m) cls.push('memo');
+      const ex = data.ex[k];
+      if (ex && ex.length) cls.push('ex');
       if (k === today) cls.push('today');
       const future = k > today;
       if (future) cls.push('future');
-      const state = r ? (r.s === 'sober' ? '飲まなかった' : '飲んだ') : '未記録';
+      const state = (r ? (r.s === 'sober' ? '飲まなかった' : '飲んだ') : '未記録')
+        + (ex ? (ex.length ? ' 運動：' + ex.map(e => EX_KINDS[e]).join('・') : ' 運動：休み') : '');
       html += `<button class="${cls.join(' ')}" data-k="${k}" ${future ? 'disabled' : ''} aria-label="${m + 1}月${d}日 ${state}">${d}</button>`;
     }
     $('cal').innerHTML = html;
@@ -521,7 +579,7 @@
     renderStats();
     renderBody();
     renderCalendar();
-    if (sheetKey) paintChoice($('sheetChoice'), $('sheetMemo'), data.records[sheetKey]);
+    if (sheetKey) { paintChoice($('sheetChoice'), $('sheetMemo'), data.records[sheetKey]); paintEx($('sheetEx'), sheetKey); }
   }
 
   // ---------- トースト ----------
@@ -567,6 +625,28 @@
     toast(up > 0 ? `記録しました　肝臓の回復 +${up}%` : '記録しました');
   }
 
+  // 運動：種類はいくつでも選べる。「休み」は他と同時には選ばない。押し直すと外れる
+  function toggleEx(k, e) {
+    const cur = data.ex[k];
+    if (e === 'rest') {
+      if (cur && cur.length === 0) delete data.ex[k]; else data.ex[k] = [];
+    } else {
+      const list = cur ? [...cur] : [];
+      const i = list.indexOf(e);
+      if (i >= 0) list.splice(i, 1); else list.push(e);
+      if (list.length) data.ex[k] = list; else delete data.ex[k];
+    }
+    save();
+    render();
+  }
+  function bindEx(box, getKey) {
+    box.addEventListener('click', ev => {
+      const b = ev.target.closest('button');
+      const k = getKey();
+      if (b && k) toggleEx(k, b.dataset.e);
+    });
+  }
+
   // ---------- 今日の操作 ----------
   $('todayChoice').addEventListener('click', e => {
     const b = e.target.closest('button');
@@ -576,6 +656,7 @@
     recordWithToast(k, b.dataset.s);
   });
   $('todayMemo').querySelector('input').addEventListener('input', e => setMemo(todayKey(), e.target.value));
+  bindEx($('todayEx'), todayKey);
 
   // ---------- カレンダーの操作 ----------
   $('prevM').addEventListener('click', () => { viewYM.m--; if (viewYM.m < 0) { viewYM.m = 11; viewYM.y--; } renderCalendar(); });
@@ -591,6 +672,7 @@
     sheetKey = k;
     $('sheetTitle').textContent = k === todayKey() ? `今日 ${labelOf(k)}` : labelOf(k);
     paintChoice($('sheetChoice'), $('sheetMemo'), data.records[k]);
+    paintEx($('sheetEx'), k);
     $('sheetBg').classList.add('show');
   }
   function closeSheet() { sheetKey = null; $('sheetBg').classList.remove('show'); }
@@ -601,6 +683,7 @@
     recordWithToast(sheetKey, b.dataset.s);
   });
   $('sheetMemo').querySelector('input').addEventListener('input', e => { if (sheetKey) setMemo(sheetKey, e.target.value); });
+  bindEx($('sheetEx'), () => sheetKey);
   $('sheetClear').addEventListener('click', () => { if (sheetKey) { setRecord(sheetKey, null); toast('未記録に戻しました'); } });
   $('sheetClose').addEventListener('click', closeSheet);
   $('sheetDone').addEventListener('click', closeSheet);
@@ -664,6 +747,12 @@
         if (!isDateKey(k) || !r || (r.s !== 'sober' && r.s !== 'drank')) continue;
         data.records[k] = r.s === 'drank' && typeof r.m === 'string' && r.m.trim() ? { s: 'drank', m: r.m.trim().slice(0, 60) } : { s: r.s };
         n++;
+      }
+      if (obj.ex && typeof obj.ex === 'object') {
+        for (const [k, list] of Object.entries(obj.ex)) {
+          if (!isDateKey(k) || !Array.isArray(list)) continue;
+          data.ex[k] = [...new Set(list.filter(e => e in EX_KINDS))];
+        }
       }
       if (Array.isArray(obj.labs)) {
         for (const l of obj.labs) {
